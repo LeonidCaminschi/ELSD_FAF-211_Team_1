@@ -1,0 +1,144 @@
+parser grammar SimpQL;
+
+options {
+	tokenVocab = SimpQLlexer;
+}
+
+query: statement_list EOF
+;
+
+statement_list:
+	statement SCOL
+;
+
+statement: (
+	select_statement
+	| create_table_statement
+	| insert_into_statement
+	| update_statement
+	| delete_from_statement
+	| generate_key_statement
+	| create_user_statement
+	| login_statement
+	| help_statement
+)
+;
+
+select_statement: 
+	SELECT_ ((result_column (COMMA result_column)*?) | STAR_)
+		FROM_ table_name
+	(WHERE_ where_statement)?
+	(ORDER_ BY_ table_column)?
+;
+
+create_table_statement:
+	CREATE_ TABLE_ table_name
+	OPEN_PAR
+		column_definition (COMMA column_definition)*?
+	CLOSE_PAR
+;
+
+insert_into_statement:
+	INSERT_ INTO_ table_name VALUES_
+	OPEN_PAR 
+		value (COMMA value)*?
+	CLOSE_PAR
+;
+
+update_statement:
+	UPDATE_ table_name
+	SET_ table_column ASIGN (value | table_column)
+	(WHERE_ where_statement)?
+;
+
+delete_from_statement:
+	DELETE_ FROM_ table_name
+	(WHERE_ where_statement)?
+;
+
+generate_key_statement:
+	GENERATE_ KEY_ boolean boolean boolean boolean number?
+;
+
+create_user_statement:
+	CREATE_ USER_ username password mail token
+;
+
+login_statement:
+	LOGIN_ username password
+;
+
+help_statement:
+	HELP_
+;
+
+column_definition:
+	table_column column_type
+;
+
+where_statement:
+	table_column logic_operator value
+;
+
+
+logic_operator:
+	EQ
+	| LT
+	| LT_EQ
+	| GT
+	| GT_EQ
+	| NOT_EQ
+;
+
+
+result_column:
+	table_column
+;
+
+username:
+	any_name
+;
+
+password:
+	any_name
+;
+
+mail:
+	any_name ATSIGN_ any_name DOT	 any_name
+;
+
+token:
+	number //rethink probably
+;
+
+column_type:
+	any_name
+;
+
+table_column:
+	any_name
+;
+
+table_name:
+	any_name
+;
+
+number:
+	NUMERIC_LITERAL
+;
+
+boolean:
+	TRUE_ | FALSE_
+;	
+
+value:
+	(PLUS | MINUS)? NUMERIC_LITERAL 
+	| STRING_LITERAL
+;
+
+any_name:
+	IDENTIFIER
+;
+
+
+

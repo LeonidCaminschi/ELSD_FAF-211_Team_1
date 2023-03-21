@@ -1,0 +1,56 @@
+lexer grammar SimpQLlexer;
+
+options { caseInsensitive = true; }
+
+SCOL: 	';';
+SELECT_: 	'SELECT';
+COMMA: 	',';
+WHERE_:	'WHERE';
+ORDER_:	'ORDER';
+BY_:		'BY';
+CREATE_:	'CREATE';
+TABLE_:	'TABLE';
+OPEN_PAR:	'(';
+CLOSE_PAR:	')';
+INSERT_:	'INSERT';
+INTO_: 	'INTO';
+VALUES_:	'VALUES';
+UPDATE_:	'UPDATE';
+SET_:		'SET';
+EQ:		'==';
+DELETE_:	'DELETE';
+GENERATE_:	'GENERATE';
+KEY_:		'KEY';
+USER_: 	'USER';
+LOGIN_:	'LOGIN';
+HELP_	:	'HELP';
+LT:		'<';
+LT_EQ:	'<=';
+GT:		'>';
+GT_EQ:	'>=';
+NOT_EQ:	'!=';
+ATSIGN_:	'@';
+DOT:		'.';
+STAR_: 	'*';
+FROM_:	'FROM';
+PLUS:		'+';
+MINUS:	'-';
+ASIGN:  '=';
+
+TRUE_:   '1';
+FALSE_:  '0';
+
+IDENTIFIER:
+    '"' (~'"' | '""')* '"'
+    | '`' (~'`' | '``')* '`'
+    | '[' ~']'* ']'
+    | [A-Z_] [A-Z_0-9]*
+;
+
+NUMERIC_LITERAL: ((DIGIT+ ('.' DIGIT*)?) | ('.' DIGIT+)) ('E' [-+]? DIGIT+)?;
+STRING_LITERAL: '\'' ( ~'\'' | '\'\'')* '\'';
+SPACES: [ \u000B\t\r\n] -> channel(HIDDEN);
+
+fragment DIGIT:     [0-9];
+
+	
