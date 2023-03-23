@@ -29,7 +29,7 @@ LT_EQ:	'<=';
 GT:		'>';
 GT_EQ:	'>=';
 NOT_EQ:	'!=';
-ATSIGN_:	'@';
+ATSIGN_:	'@';a
 DOT:		'.';
 STAR_: 	'*';
 FROM_:	'FROM';
@@ -37,8 +37,8 @@ PLUS:		'+';
 MINUS:	'-';
 ASIGN:  '=';
 
-TRUE_:   '1';
-FALSE_:  '0';
+TRUE_:   'true';
+FALSE_:  'false';
 
 IDENTIFIER:
     '"' (~'"' | '""')* '"'
@@ -52,5 +52,3 @@ STRING_LITERAL: '\'' ( ~'\'' | '\'\'')* '\'';
 SPACES: [ \u000B\t\r\n] -> channel(HIDDEN);
 
 fragment DIGIT:     [0-9];
-
-	
