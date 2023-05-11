@@ -31,9 +31,13 @@ def execute_sql(sql, filename):
             if parsed_sql.condition:
                 data = data.query(parsed_sql.condition)
             # Select columns from data
-            selected_data = data[parsed_sql.columns]
+            if "*" in parsed_sql.columns:
+                selected_data = data[data.columns]
+            else:
+                selected_data = data[parsed_sql.columns]
             # Return results as Pandas DataFrame
             return selected_data
+
         elif sql.startswith('INSERT'):
             # Insert new row into data
             new_row = {col: val for col, val in zip(parsed_sql.columns, parsed_sql.values)}
@@ -54,7 +58,7 @@ def execute_sql(sql, filename):
 # results = execute_sql('INSERT INTO people (name, age, gender) VALUES (John, 35, M)', 'people.csv')
 # print(results)
 
-results = execute_sql('SELECT * FROM data', '/../data/data.csv')
+results = execute_sql('SELECT ph FROM data', 'data/data.csv')
 print(results)
 
 # results = execute_sql('UPDATE people SET age=36 WHERE name=John', 'people.csv')
