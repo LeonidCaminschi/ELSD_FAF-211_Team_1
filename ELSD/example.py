@@ -1,6 +1,9 @@
 from LexerClass import Lexer
 from ParserClass import Parser
 
+import warnings
+warnings.simplefilter('ignore')
+
 path = input("Path to table: -> ")
 # path = "data/data.csv"
 parser = Parser()
