@@ -1,51 +1,43 @@
-import re
+#            Made with <3
+#########################################
+#        This is still in the           #
+#        development stage.             #
+#        Please, be patient             #
+#        for a better structure.        #
+#########################################
+# Some feedback would be helpful. Thanks!
 
-class Token:
-    def __init__(self, kind, value, line, column):
-        self.kind = kind
-        self.value = value
-        self.line = line
-        self.column = column
-    
-    def print_token(self):
-        print(f"Token(type={self.kind}, value='{self.value}', line={self.line}, column={self.column})")
+from pyparsing import CaselessKeyword, Word, alphas, nums, Optional, Combine, Group, delimitedList, ParseException, \
+    QuotedString, Suppress, oneOf
 
 class Lexer:
-    def __init__(self, code):
-        self.code = code
-        
-    def tokenize(self):
-        code = self.code
-        keywords = {"SELECT", "FROM", "WHERE", "ORDER_BY"}
-        token_specification = [
-            ('NUMBER',   r'\d+(\.\d*)?'),  # Integer or decimal number
-            ('ALL',      r'\*'),            # All parameter
-            ('COMPARATOR', r'(==|>=|<=|<>|>|<)'),        # Comparator operators
-            ('COMMA',    r','),            # Comma identifier
-            ('END',      r';'),            # Statement terminator
-            ('ID',       r'[a-zA-Z][a-zA-Z_$0-9]+'),    # Identifiers
-            ('NEWLINE',  r'\n'),           # Line endings
-            ('SKIP',     r'[ \t]+'),       # Skip over spaces and tabs
-            ('MISMATCH', r'.'),            # Any other character
-        ]
-        tok_regex = '|'.join('(?P<%s>%s)' % pair for pair in token_specification)
-        line_num = 1
-        line_start = 0
-        for mo in re.finditer(tok_regex, code):
-            kind = mo.lastgroup
-            value = mo.group()
-            column = mo.start() - line_start
-            if kind == 'NUMBER':
-                value = float(value) if '.' in value else int(value)
-            elif kind == 'ID' and value in keywords:
-                kind = value
-            elif kind == 'NEWLINE':
-                line_start = mo.end()
-                line_num += 1
-                continue
-            elif kind == 'SKIP':
-                continue
-            elif kind == 'MISMATCH':
-                raise RuntimeError(f'{value} unexpected on line {line_num}')
-            result = Token(kind, value, line_num, column)
-            result.print_token()
+    def __init__(self):
+        # Define the SQL syntax
+        self.select_stmt = CaselessKeyword('select') + delimitedList(Word(alphas), ',')('columns') + \
+                      CaselessKeyword('from') + Word(alphas + nums + '_')('table') + \
+                      Optional(CaselessKeyword('where') + Group(delimitedList(Combine(Word(alphas) + Optional(Word(nums))) + \
+                        oneOf('= != < > <= >=') + (Combine(Word(alphas) + Optional(Word(nums))) | Word(nums)))))('conditions')
+
+        self.insert_stmt = CaselessKeyword('insert into') + Word(alphas + nums + '_')('table') + \
+                      CaselessKeyword('values') + Group(delimitedList(Word(alphas + nums), ','))('values_insert')
+
+        self.update_stmt = CaselessKeyword('UPDATE') + Word(alphas + nums + '_')('table') + \
+                      CaselessKeyword('SET') + Group(delimitedList(Combine(Word(alphas) + Optional(Word(nums))) + \
+                        Word('=') + (Combine(Word(alphas) + Optional(Word(nums))) | Word(nums)), ','))('assignments') + \
+                      Optional(CaselessKeyword('where') + Group(delimitedList(Combine(Word(alphas) + Optional(Word(nums))) + \
+                        oneOf('= != < > <= >=') + (Combine(Word(alphas) + Optional(Word(nums))) | Word(nums)))))('conditions')
+
+        self.generate_key_stmt = CaselessKeyword('generate key') + (Word(nums) + Word(nums) + Word(nums) + Word(nums))('privileges') + \
+                                                               Word(nums)('timeout')
+
+        self.create_user_stmt = CaselessKeyword('create user') + \
+                           Word(alphas)('username') + \
+                           Combine(Word(alphas) + Optional(Word(nums)))('password') + \
+                           Word(alphas + '@' + alphas + '.' + alphas)('mail') + \
+                           Combine(Word(alphas + nums))('token')
+
+        self.login_stmt = CaselessKeyword('login') + \
+                      Word(alphas)('username') + \
+                      Combine(Word(alphas) + Optional(Word(nums)))('password')
+
+        self.help_stmt = CaselessKeyword('help')('help')
