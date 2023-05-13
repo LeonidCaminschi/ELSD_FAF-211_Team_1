@@ -1,3 +1,12 @@
+#            Made with <3
+#########################################
+#        This is still in the           #
+#        development stage.             #
+#        Please, be patient             #
+#        for a better structure.        #
+#########################################
+# Some feedback would be helpful. Thanks!
+
 from LexerClass import Lexer
 from ParserClass import Parser
 
