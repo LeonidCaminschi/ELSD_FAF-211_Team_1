@@ -23,9 +23,15 @@ class Parser:
     def __init__(self):
         self.logged = 0
         self.lexer = Lexer()
+        self.priv_delete = 0
+        self.priv_update = 0
+        self.priv_insert = 0
+        self.priv_select = 0
+        self.filename = None
 
     # Execute the SQL command
     def execute_sql(self, sql, filename):
+        self.filename = filename
         try:
             # Parse the SQL statement
             if sql.startswith('SELECT'):
@@ -34,6 +40,10 @@ class Parser:
                 parsed_sql = self.lexer.insert_stmt.parseString(sql)
             elif sql.startswith('UPDATE'):
                 parsed_sql = self.lexer.update_stmt.parseString(sql)
+            elif sql.startswith('CREATE TABLE'):
+                parsed_sql = self.lexer.create_table_stmt.parseString(sql)
+            elif sql.startswith('DELETE TABLE'):
+                parsed_sql = self.lexer.delete_table_stmt.parseString(sql)
             elif sql.startswith('GENERATE KEY'):
                 parsed_sql = self.lexer.generate_key_stmt.parseString(sql)
             elif sql.startswith('CREATE USER'):
@@ -42,8 +52,10 @@ class Parser:
                 parsed_sql = self.lexer.login_stmt.parseString(sql)
             elif sql.startswith('HELP') or sql.startswith('help'):
                 parsed_sql = self.lexer.help_stmt.parseString(sql)
+            elif sql.startswith('CHANGE TABLE'):
+                parsed_sql = self.lexer.change_file_stmt.parseString(sql)
             # Load CSV data using read_csv from pandas
-            data = pd.read_csv(filename)
+            data = pd.read_csv(self.filename)
 
             if sql.startswith('CREATE USER'):
                 user_token = parsed_sql.token
@@ -75,18 +87,18 @@ class Parser:
                     return f'Please contact your supervisor for further details'
                 # INSERT INTO users VALUES (username, password, mail, priv1, priv2, priv3, priv4)
             elif sql.startswith('LOGIN'):
-
-                # print(user_username)
-                # results = execute_sql(f'SELECT username, password FROM users WHERE username = {user_username}', 'data/user.csv')
-
                 df_users = pd.read_csv("data/user.csv")
+                df_tokens = pd.read_csv("data/token.csv")
                 username = parsed_sql.username
-                print(username)
                 password = parsed_sql.password
-                # print(df_users[(df_users['username'] == username) & (df_users['password'] == password)][['username', 'password']])
                 if df_users[(df_users['username'] == username) & (df_users['password'] == password)][['username', 'password']] is not None:
                     self.logged = 1
-                    return f'Successfully logged in'
+                    token = df_users[(df_users['username'] == username) & (df_users['password'] == password)]["token"].values[0]
+                    self.priv_delete = df_tokens[(df_tokens['token'] == token)]['priv1_delete'].values[0]
+                    self.priv_update = df_tokens[(df_tokens['token'] == token)]['priv2_update'].values[0]
+                    self.priv_insert = df_tokens[(df_tokens['token'] == token)]['priv3_insert'].values[0]
+                    self.priv_select = df_tokens[(df_tokens['token'] == token)]['priv4_select'].values[0]
+                    return f'Successfully logged in with {username}'
                 else:
                     return f'No such user or the password is wrong. Please try again.'
                 #check if the users credentials exists if yes log in if no try again
@@ -113,55 +125,151 @@ class Parser:
             if self.logged == 0:
                 return f'Please login before proceeding'
             if sql.startswith('SELECT'):
-                # Filter data based on condition (if provided)
-                if parsed_sql.conditions:
-                    condition_elements = parsed_sql.conditions[1]
-                    condition_string = ''.join(condition_elements)
-                    data = data.query(condition_string)
-                # Select columns from data
-                selected_data = data[parsed_sql.columns]
-                # Return results as Pandas DataFrame
-                return selected_data
+                if self.priv_select:
+                    # Filter data based on condition (if provided)
+                    try:
+                        if parsed_sql.conditions:
+                            condition_elements = parsed_sql.conditions[1]
+                            condition_string = ''.join(condition_elements)
+                            data = data.query(condition_string)
+                        # Select columns from data
+                        selected_data = data[parsed_sql.columns]
+                        # Return results as Pandas DataFrame
+                        return selected_data
+                    except KeyError as e:
+                        return e
+                else:
+                    return f"You don't have such privileges. If something is wrong, contact the administrator."
             elif sql.startswith('INSERT'):
-                columns_names = list(data.columns)
-                # Insert new row into data
-                new_rows = {col: int(val) for col, val in list(zip(columns_names, parsed_sql.values_insert))}
-                # print(new_rows)
-                data = data.append(new_rows, ignore_index=True)
-                os.remove(filename)
-                # Write updated data to CSV file
-                data.to_csv(filename, index=False)
-                return f'Inserted new row(s) into {parsed_sql.table} table.'
+                if self.priv_insert:
+                    columns_names = list(data.columns)
+                    # Insert new row into data
+                    new_rows = {col: int(val) for col, val in list(zip(columns_names, parsed_sql.values_insert))}
+                    # print(new_rows)
+                    data = data.append(new_rows, ignore_index=True)
+                    os.remove(self.filename)
+                    # Write updated data to CSV file
+                    data.to_csv(self.filename, index=False)
+                    return f'Inserted new row(s) into {parsed_sql.table} table.'
+                else:
+                    return f"You don't have such privileges. If something is wrong, contact the administrator."
+
             elif sql.startswith('UPDATE'):
-                # Update rows in data
-                assignments = {}
-                for assignment in parsed_sql.assignments:
-                    print(assignment)
-                #     column, value = assignment.split('=')
-                #     try:
-                #         value = int(value)
-                #     except ValueError:
-                #         pass
-                #     assignments[column.strip()] = value.strip()
-                # if parsed_sql.conditions:
-                #     condition_str = ' '.join(parsed_sql.conditions)
-                #     data.loc[data.eval(condition_str), list(assignments.keys())] = list(assignments.values())
-                # else:
-                #     data[list(assignments.keys())] = list(assignments.values())
-                # # Write updated data to CSV file
-                # data.to_csv(filename, index=False)
-                return f'Updated rows in {parsed_sql.table} table.'
-            # elif sql.startswith('GENERATE KEY'):
-            #     if admin == 1:
-            #         # Check if the request was done by an admin or above
-            #         token = secrets.token_hex(16)
-            #         execute_sql(f'INSERT INTO tokens VALUES `token`, {time.time()}', 'data/tokens.csv')
-            #         # INSERT INTO tokens VALUES (token, priv1, priv2, priv3, priv4, timeout, ts)
-            #         return f'Succesfuly generated new key'
-            #     else:
-            #         return f'Not enough privileges for this command'
+                if self.priv_update:
+                    # Update rows in data
+                    assignments = {}
+                    start_col = 1
+
+                    for assignment_list in parsed_sql.assignments:
+                        for i in range(1, len(assignment_list)):
+                            # print(i % start_col)
+                            if i % start_col == 0:
+                                # columns / values
+                                col = assignment_list[i-1]
+                                val = assignment_list[i+1]
+                                start_col += 3
+
+                                assignments[col] = val
+                    # print(assignments)
+
+                    for column, value in assignments.items():
+                        try:
+                            assignments[column] = int(value)
+                        except ValueError:
+                            try:
+                                assignments[column] = float(value)
+                            except ValueError:
+                                pass
+                            pass
+                    print(assignments)
+
+                    if parsed_sql.conditions[0] == 'WHERE':
+                        conditions = {}
+                        signs = {}
+                        start_condition = 1
+
+                        conditions_list = parsed_sql.conditions[1]
+                        for i in range(1, len(conditions_list)-1):
+                            # print(i % start_condition)
+                            if i % start_condition == 0:
+                                # columns / values
+                                col = conditions_list[i - 1]
+                                sign = conditions_list[i]
+                                val = conditions_list[i + 1]
+                                start_condition += 3
+
+                                conditions[col] = val
+                                signs[col] = sign
+
+                        for column, value in conditions.items():
+                            try:
+                                conditions[column] = int(value)
+                            except ValueError:
+                                pass
+                        print(conditions)
+
+                        df_condition_str = ''
+                        begin = True
+                        for column, value in conditions.items():
+                            if begin:
+                                df_condition_str = df_condition_str + f"(data['{column}']" + signs[column] + str(value)
+                                begin = False
+                            else:
+                                df_condition_str = df_condition_str + "&" + f"data['{column}']" + signs[column] + str(value)
+                        df_condition_str = df_condition_str + ')'
+
+                        print(df_condition_str)
+
+                        for column, value in assignments.items():
+                            data.loc[eval(df_condition_str), column] = value
+
+                    else:
+                        for column, value in assignments.items():
+                            data.loc[:, column] = value
+
+                    # Write updated data to CSV file
+                    data.to_csv(self.filename, index=False)
+                    return f'Updated rows in {parsed_sql.table} table.'
+                else:
+                    return f"You don't have such privileges. If something is wrong, contact the administrator."
+
+            elif sql.startswith('CREATE TABLE'):
+                table = parsed_sql.table
+                columns = parsed_sql.columns
+
+                empty_dict = {}
+                for column in columns:
+                    empty_dict[column] = []
+
+                data = pd.DataFrame(empty_dict)
+
+                data.to_csv(f'data/{table}.csv')
+                self.filename = f'data/{table}.csv'
+
+                return f"Table {table} was created!"
+
+            elif sql.startswith('DELETE TABLE'):
+                if self.priv_delete:
+                    delete = input(f"Are you sure you want to delete the table '{self.filename}' ? [y/n] ")
+
+                    if delete == "y":
+                        os.remove(self.filename)
+                        return f"{self.filename} has been deleted."
+                    else:
+                        return f"{self.filename} has not been deleted."
+                else:
+                    return f"You don't have such privileges. If something is wrong, contact the administrator."
+
+            elif sql.startswith("CHANGE TABLE"):
+                table = parsed_sql.table
+
+                self.filename = None
+
+                return
+
+
         except ParseException as e:
-            print(f'Error parsing SQL: {e}')
+            print(f'Error parsing SimpQL: {e}')
 
 
 # Example usage
